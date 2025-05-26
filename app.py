@@ -5,6 +5,10 @@ import os
 
 app = Flask(__name__)
 
+@app.route("/", methods=["GET"])
+def home():
+    return "Welcome to certificate generation page"
+
 @app.route("/generate-certificate", methods=["POST"])
 def generate_certificate():
     data = request.json
