@@ -1,75 +1,67 @@
-from flask import Flask, request, send_file
-from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import os
 
-app = Flask(__name__)
+def generate_certificate(name, date, category, year):
+    # Paths
+    template_path = "templates/sap_template.png"
+    font_path = "fonts/72-Bold.ttf"
+    output_img_path = f"output/{name.replace(' ', '_')}_certificate.png"
+    output_pdf_path = f"output/{name.replace(' ', '_')}_certificate.pdf"
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Welcome to certificate generation page"
-
-@app.route("/generate-certificate", methods=["POST"])
-def generate_certificate():
-    data = request.json
-    name = data["name"]
-    title = data["title"]
-    desc = data["desc"]
-    date = data["date"]
-    category = data["category"]
-
-    template_path = "templates/sap_template.jpg"
-    font_path = "fonts/arial.ttf"
-
+    # Load template
     certificate = Image.open(template_path).convert("RGB")
     draw = ImageDraw.Draw(certificate)
 
-    name_font = ImageFont.truetype(font_path, 60)
-    text_font = ImageFont.truetype(font_path, 30)
-    title_font = ImageFont.truetype(font_path, 20)
+    # Fonts
+    category_name_font = ImageFont.truetype(font_path, 37.3)
+    year_font = ImageFont.truetype(font_path, 20)
+    date_font = ImageFont.truetype(font_path, 18)
 
+    # Coordinates
     coords = {
-        "title": (65, 395),
-        "name": (70, 450),
-        "desc_start": (70, 550),
-        "date": (90, 845),
-        "category": (685, 845)
+        "name": (220, 265),
+        "date": (180, 568),
+        "year": (448, 471),
+        "category": (290, 130)
     }
 
-    draw.text(coords["title"], title, fill="black", font=title_font)
-    draw.text(coords["name"], name, fill="black", font=name_font)
-    draw.text(coords["date"], date, fill="black", font=text_font)
-    draw.text(coords["category"], category, fill="black", font=text_font)
+    if len(name.split()) == 1 or len(name) < 7:
+        name_x = coords["name"][0] + 150  
+    else:
+        name_x = coords["name"][0]
+    
+    # Center the name horizontally
+    image_width = 855
+    name_width = draw.textlength(name, font=category_name_font)
+    name_x = (image_width - name_width) // 2
+    draw.text((name_x, coords["name"][1]), name, fill="#00008B", font=category_name_font)
 
-    # Wrap desc
-    def wrap_text(text, font, max_width):
-        lines = []
-        words = text.split()
-        line = ""
-        for word in words:
-            test_line = line + word + " "
-            if draw.textlength(test_line, font=font) <= max_width:
-                line = test_line
-            else:
-                lines.append(line.strip())
-                line = word + " "
-        lines.append(line.strip())
-        return lines
+    # Center the category horizontally
+    image_width = 855
+    category_width = draw.textlength(category, font=category_name_font)
+    category_x = (image_width - category_width) // 2
+    draw.text((category_x, coords["category"][1]), category, fill="Black", font=category_name_font)
 
-    max_width = 900
-    current_height = coords["desc_start"][1]
-    line_spacing = 10
-    for line in wrap_text(desc, text_font, max_width):
-        draw.text((coords["desc_start"][0], current_height), line, fill="black", font=text_font)
-        bbox = draw.textbbox((0, 0), line, font=text_font)
-        current_height += (bbox[3] - bbox[1]) + line_spacing
+    # Draw fields with specified colors
+    draw.text(coords["date"], date, fill="gray", font=date_font)
+    draw.text(coords["year"], year, fill="black", font=year_font)
 
-    # Save PDF to memory
-    pdf_bytes = BytesIO()
-    certificate.save(pdf_bytes, format="PDF", resolution=100.0)
-    pdf_bytes.seek(0)
+    # Create output directory if not exists
+    os.makedirs("output", exist_ok=True)
 
-    return send_file(pdf_bytes, download_name=f"{name}_certificate.pdf", mimetype="application/pdf")
+    # Save as PNG
+    certificate.save(output_img_path, "PNG")
 
+    # Save as PDF
+    certificate.save(output_pdf_path, "PDF", resolution=100.0)
+
+    print(f"✅ Certificate saved as PDF: {output_pdf_path}")
+
+# Example usage
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+    generate_certificate(
+        name="Ligory.A",
+        date="26th May 2024",
+        category="Innovation Star",
+        year="2025"
+    )
