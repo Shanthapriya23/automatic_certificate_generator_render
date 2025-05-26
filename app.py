@@ -1,12 +1,24 @@
+from flask import Flask, request, send_file
+from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import os
 
-def generate_certificate(name, date, category, year):
+app = Flask(__name__)
+
+@app.route("/", methods=["GET"])
+def home():
+    return "Welcome to certificate generation page"
+
+@app.route("/generate-certificate", methods=["POST"])
+def generate_certificate():
+    data = request.json
+    name = data["name"]
+    date = data["date"]
+    category = data["category"]
+    year = data["year"]
     # Paths
     template_path = "templates/sap_template.png"
     font_path = "fonts/72-Bold.ttf"
-    output_img_path = f"output/{name.replace(' ', '_')}_certificate.png"
-    output_pdf_path = f"output/{name.replace(' ', '_')}_certificate.pdf"
 
     # Load template
     certificate = Image.open(template_path).convert("RGB")
@@ -46,22 +58,13 @@ def generate_certificate(name, date, category, year):
     draw.text(coords["date"], date, fill="gray", font=date_font)
     draw.text(coords["year"], year, fill="black", font=year_font)
 
-    # Create output directory if not exists
-    os.makedirs("output", exist_ok=True)
-
-    # Save as PNG
-    certificate.save(output_img_path, "PNG")
-
-    # Save as PDF
-    certificate.save(output_pdf_path, "PDF", resolution=100.0)
-
-    print(f"✅ Certificate saved as PDF: {output_pdf_path}")
+    pdf_bytes = BytesIO()
+    certificate.save(pdf_bytes, format="PDF", resolution=100.0)
+    pdf_bytes.seek(0)
+   
+    return send_file(pdf_bytes, download_name=f"{name}_certificate.pdf", mimetype="application/pdf")
+    
 
 # Example usage
 if __name__ == "__main__":
-    generate_certificate(
-        name="Ligory.A",
-        date="26th May 2024",
-        category="Innovation Star",
-        year="2025"
-    )
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
